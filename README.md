@@ -1,6 +1,8 @@
-# 壹品仓 · 商品运营智能驾驶舱
+# AI-powered E-commerce Business Analytics & SKU Diagnosis System 
+AI 电商经营分析与商品诊断系统
 
-品牌特卖电商经营分析 & AI 策略助手 — 求职作品集项目
+A Streamlit-based e-commerce analytics dashboard with SKU diagnosis, business health check, GMV uplift estimation, and Claude-powered strategy recommendations.
+基于 Streamlit 搭建的电商经营分析作品集项目，覆盖生意大盘、经营健康度检查、SKU 商品诊断、GMV 增量测算与 Claude API 驱动的 AI 策略建议。
 
 ## 项目简介
 
@@ -55,9 +57,3 @@ yipincang_app/
 全部数据为合成模拟数据，基于真实业务逻辑建模（季节性、周内波动、双11/618等大促节点），
 不涉及任何真实企业数据。三张核心表的 GMV 口径通过自底向上聚合（SKU → 场次 → 每日）
 保证完全一致，不存在跨表对不上的情况。
-
-## 部署到 Streamlit Community Cloud（免费公开链接）
-
-1. 把整个项目推到 GitHub 仓库
-2. 登录 https://share.streamlit.io，选择该仓库和 `app.py`
-3. 部署完成后会获得一个公开链接，可直接放在简历中
