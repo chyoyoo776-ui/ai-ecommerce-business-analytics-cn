@@ -1,10 +1,10 @@
-# AI 电商经营分析与商品诊断系统
+# 壹品仓 · 商品运营智能驾驶舱
 
-基于 Streamlit 与 Claude API 的电商经营看板和策略建议助手
+品牌特卖电商经营分析 & AI 策略助手 — 求职作品集项目
 
 ## 项目简介
 
-模拟真实品牌特卖电商 App 的经营数据（2024-07 ~ 2025-06，月均 GMV 约1000万元），
+模拟真实品牌特卖闪购电商 App 的经营数据（2024-07 ~ 2025-06，月均 GMV 约1000万元），
 覆盖运动户外与鞋靴两大类目下的 21 个真实市场品牌。包含三大功能模块：
 
 1. **生意大盘**：多渠道流量与 GMV 趋势监控
@@ -22,7 +22,7 @@ pip install -r requirements.txt
 ### 2. 启动应用
 
 ```bash
-streamlit run intro.py
+streamlit run app.py
 ```
 
 浏览器会自动打开 `http://localhost:8501`
@@ -45,13 +45,19 @@ yipincang_app/
 │   ├── sku_performance.csv     # SKU 商品运营明细
 │   └── product_catalog.csv     # 商品基础目录
 └── pages/
-    ├── 1_📊_生意大盘.py
-    ├── 2_🔍_商品诊断.py
-    └── 3_🤖_AI策略助手.py
+    ├── 1_Business_Overview.py
+    ├── 2_Product_Diagnosis.py
+    └── 3_AI_Assistant.py
 ```
 
 ## 数据说明
 
 全部数据为合成模拟数据，基于真实业务逻辑建模（季节性、周内波动、双11/618等大促节点），
 不涉及任何真实企业数据。三张核心表的 GMV 口径通过自底向上聚合（SKU → 场次 → 每日）
-保证完全一致。
+保证完全一致，不存在跨表对不上的情况。
+
+## 部署到 Streamlit Community Cloud（免费公开链接）
+
+1. 把整个项目推到 GitHub 仓库
+2. 登录 https://share.streamlit.io，选择该仓库和 `app.py`
+3. 部署完成后会获得一个公开链接，可直接放在简历中

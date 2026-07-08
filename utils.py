@@ -45,3 +45,30 @@ def pct_delta(current, previous):
     if previous == 0 or pd.isna(previous):
         return None
     return (current - previous) / previous
+
+
+# ============================================================
+# 中英文切换
+# ============================================================
+def get_lang():
+    if "lang" not in st.session_state:
+        st.session_state["lang"] = "zh"
+    return st.session_state["lang"]
+
+
+def language_toggle():
+    """在侧边栏渲染语言切换控件，返回当前语言代码 'zh' 或 'en'"""
+    options = {"zh": "中文", "en": "English"}
+    if "lang" not in st.session_state:
+        st.session_state["lang"] = "zh"
+    st.sidebar.radio(
+        "🌐 Language / 语言", list(options.keys()),
+        format_func=lambda x: options[x], key="lang"
+    )
+    return st.session_state["lang"]
+
+
+def t(zh_text, en_text):
+    """根据当前语言返回对应文本；一次性传入中英文两个版本"""
+    return zh_text if get_lang() == "zh" else en_text
+
