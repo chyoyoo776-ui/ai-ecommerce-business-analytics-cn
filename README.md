@@ -6,7 +6,7 @@ A Streamlit-based e-commerce analytics dashboard with SKU diagnosis, business he
 
 ## 项目简介
 
-模拟真实品牌特卖闪购电商 App 的经营数据（2024-07 ~ 2025-06，月均 GMV 约1000万元），
+模拟真实品牌特卖闪购电商 App 的经营数据（2024-12 ~ 2025-12，月均 GMV 约1000万元），
 覆盖运动户外与鞋靴两大类目下的 21 个真实市场品牌。包含三大功能模块：
 
 1. **生意大盘**：多渠道流量与 GMV 趋势监控

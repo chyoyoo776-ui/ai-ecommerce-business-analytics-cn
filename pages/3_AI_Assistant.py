@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""AI 策略助手 — 一键生成结构化运营建议报告 + GMV 增量测算器"""
+"""AI 策略助手 — 结构化经营复盘框架 + GMV 增量测算器"""
 
 import streamlit as st
 import pandas as pd
@@ -7,13 +7,16 @@ import sys
 from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
-from utils import load_sku_performance, load_brand_campaigns, load_daily_business, fmt_wan, fmt_pct, language_toggle, t
+from utils import load_sku_performance, load_brand_campaigns, load_daily_business, fmt_wan, fmt_pct
 
 st.set_page_config(page_title="AI 策略助手", page_icon="🤖", layout="wide")
-lang = language_toggle()
-st.title(t("🤖 AI 策略助手", "🤖 AI Strategy Assistant"))
-st.caption(t("基于当前数据自动生成结构化运营建议 · 由 Claude API 驱动",
-             "Auto-generates structured operational recommendations · Powered by Claude API"))
+st.title("🤖 AI 策略助手")
+st.caption("基于当前数据自动生成结构化运营建议 · 由 Claude API 驱动")
+
+st.info(
+    "本页将经营异常和商品诊断结果转化为结构化运营建议，并通过 GMV uplift 测算评估潜在收益，"
+    "同时给出后续追踪指标和 A/B Test 验证方向。**AI 助手采用固定的结构化经营复盘框架，而不是开放式生成泛泛建议。**"
+)
 
 # 优先从 Streamlit secrets 读取共享 Key（部署到 Streamlit Cloud 时配置），
 # 本地完全没有 secrets.toml 文件时，st.secrets 会直接抛异常，所以这里用 try/except 兜底
@@ -24,54 +27,44 @@ except Exception:
 
 if shared_key:
     api_key = shared_key
-    st.success(t("✅ 已使用平台内置的演示 Key，可直接生成建议", "✅ Using the built-in demo key — ready to generate"), icon="🔑")
+    st.success("✅ 已使用平台内置的演示 Key，可直接生成建议", icon="🔑")
 else:
-    st.info(t("💡 需要在下方填入你的 Anthropic API Key 才能生成 AI 建议。Key 仅在本次会话中使用，不会被存储。",
-              "💡 Enter your Anthropic API Key below to generate AI suggestions. The key is only used for this session and never stored."), icon="🔑")
-    api_key = st.text_input(t("Anthropic API Key", "Anthropic API Key"), type="password", placeholder="sk-ant-...")
+    st.info("💡 需要在下方填入你的 Anthropic API Key 才能生成 AI 建议。Key 仅在本次会话中使用，不会被存储。", icon="🔑")
+    api_key = st.text_input("Anthropic API Key", type="password", placeholder="sk-ant-...")
 
 sku = load_sku_performance()
 camp = load_brand_campaigns()
 daily = load_daily_business()
 
 # ============================================================
-# 模块一：一键生成运营建议报告
+# 模块一：一键生成结构化运营建议报告
 # ============================================================
-st.subheader(t("📝 一键生成运营建议报告", "📝 One-Click Strategy Report"))
+st.subheader("📝 一键生成运营建议报告")
+st.caption("报告将按照六个板块输出：核心经营问题 → 原因假设 → 优先行动建议 → 预期影响 → 追踪指标 → 验证实验，对应完整的经营复盘闭环。")
 
 max_date = sku["end_date"].max()
 col1, col2, col3 = st.columns(3)
 with col1:
-    scope_options_zh = ["全平台", "按品牌", "按类目"]
-    scope_options_en = ["All Platform", "By Brand", "By Category"]
-    scope_idx = st.selectbox(t("品牌/类目范围", "Brand/Category Scope"),
-                              range(3), format_func=lambda i: t(scope_options_zh[i], scope_options_en[i]))
-    report_scope = scope_options_zh[scope_idx]  # 内部统一用中文键，避免影响数据筛选逻辑
+    report_scope = st.selectbox("品牌/类目范围", ["全平台", "按品牌", "按类目"])
 with col2:
     scope_value = None
     if report_scope == "按品牌":
-        scope_value = st.selectbox(t("选择品牌", "Select Brand"), sorted(sku["brand"].unique().tolist()))
+        scope_value = st.selectbox("选择品牌", sorted(sku["brand"].unique().tolist()))
     elif report_scope == "按类目":
-        scope_value = st.selectbox(t("选择类目", "Select Category"), sorted(sku["category"].unique().tolist()))
+        scope_value = st.selectbox("选择类目", sorted(sku["category"].unique().tolist()))
 with col3:
-    window_options_zh = ["最近7天", "最近30天", "最近90天", "全部历史数据"]
-    window_options_en = ["Last 7 days", "Last 30 days", "Last 90 days", "All history"]
-    window_idx = st.selectbox(t("分析时间窗口", "Analysis Window"),
-                               range(4), index=1, format_func=lambda i: t(window_options_zh[i], window_options_en[i]))
-    window_option = window_options_zh[window_idx]
+    window_option = st.selectbox("分析时间窗口", ["最近7天", "最近30天", "最近90天", "全部历史数据"], index=1)
 
 window_days_map = {"最近7天": 7, "最近30天": 30, "最近90天": 90, "全部历史数据": None}
 window_days = window_days_map[window_option]
 if window_days is not None:
     window_start = max_date - pd.Timedelta(days=window_days)
-    st.caption(t(f"📅 本次分析范围：{window_start.date()} ~ {max_date.date()}（基于数据集最新日期往前推算，共{window_days}天）",
-                 f"📅 Analysis range: {window_start.date()} ~ {max_date.date()} (last {window_days} days from the dataset's latest date)"))
+    st.caption(f"📅 本次分析范围：{window_start.date()} ~ {max_date.date()}（基于数据集最新日期往前推算，共{window_days}天）")
 else:
     window_start = sku["start_date"].min()
-    st.caption(t(f"📅 本次分析范围：{window_start.date()} ~ {max_date.date()}（全部历史数据）",
-                 f"📅 Analysis range: {window_start.date()} ~ {max_date.date()} (all historical data)"))
+    st.caption(f"📅 本次分析范围：{window_start.date()} ~ {max_date.date()}（全部历史数据）")
 
-generate_btn = st.button(t("📝 一键生成运营建议报告", "📝 Generate Strategy Report"), type="primary", use_container_width=True)
+generate_btn = st.button("📝 一键生成运营建议报告", type="primary", use_container_width=True)
 
 
 def build_data_context(scope, value, window_start=None, window_end=None):
@@ -133,80 +126,107 @@ def build_data_context(scope, value, window_start=None, window_end=None):
     return context
 
 
-SYSTEM_PROMPT_ZH = """你是一名资深的品牌特卖电商平台运营分析师，擅长从数据中提炼可执行的运营策略。
-你会收到平台的商品运营数据摘要,请基于数据生成一份结构化的《运营建议报告》,要求:
+SYSTEM_PROMPT = """你是一名资深的品牌特卖电商平台运营分析师，擅长从数据中提炼可执行的运营策略。
+你会收到平台的商品运营数据摘要，请基于数据生成一份《结构化经营复盘报告》。
 
-1. 分为四个板块：🔴需要立即处理、🟡建议关注、🟢资源加注建议、📦库存与清仓建议
-2. 每一条建议都要引用具体数据（商品名/品牌/具体数字），不要说空话
-3. 每条建议给出明确的操作动作（比如：建议降价X%、建议更换详情页图片、建议加大XX渠道曝光等）
-4. 语言简洁专业，像真实运营周报一样，不要有多余的寒暄
-5. 用中文回答，使用 Markdown 格式
+报告必须严格按以下六个板块输出，标题使用二级标题（##），不要增减或调换顺序：
+
+## 1. 核心经营问题 Key Business Issue
+用1-2句话概括当前数据中最值得关注的经营问题，必须引用具体数字。
+
+## 2. 原因假设 Root Cause Hypothesis
+基于数据推测问题可能的成因（如商品内容、定价、库存、流量质量等），说明依据。
+
+## 3. 优先行动建议 Priority Actions
+列出3-5条具体可执行的动作，每条必须引用具体商品名/品牌/数字，并按优先级排序。
+
+## 4. 预期影响 Expected Impact
+定性或定量描述如果执行上述动作，预计能带来什么变化（转化率提升、GMV增量等）。
+
+## 5. 追踪指标 Metrics to Track
+列出后续应该持续监控的3-5个指标，说明监控周期。
+
+## 6. 建议验证实验 Suggested A/B Test
+给出一个具体的A/B测试方案，包含：假设、对照组、实验组、主指标、辅助指标、护栏指标、观察周期。
+
+要求：语言简洁专业，像真实运营周报一样，不要有多余的寒暄；用中文回答，使用 Markdown 格式。
 """
-
-SYSTEM_PROMPT_EN = """You are a senior operations analyst at a brand flash-sale e-commerce platform, skilled at
-turning data into actionable strategy. You will receive a structured data summary of product performance.
-Generate a structured "Operations Strategy Report" with these requirements:
-
-1. Organize into four sections: 🔴 Immediate Action Needed, 🟡 Worth Monitoring, 🟢 Resource Reallocation, 📦 Inventory & Clearance
-2. Every recommendation must cite specific data (product name/brand/exact numbers) — no vague statements
-3. Every recommendation must include a clear action (e.g., "reduce price by X%", "replace product images", "increase exposure on channel X")
-4. Keep the tone concise and professional, like a real weekly ops report — no filler greetings
-5. Answer in English, using Markdown format
-"""
-
-SYSTEM_PROMPT = t(SYSTEM_PROMPT_ZH, SYSTEM_PROMPT_EN)
 
 if generate_btn:
     if not api_key:
-        st.error(t("请先填入 Anthropic API Key", "Please enter your Anthropic API Key first"))
+        st.error("请先填入 Anthropic API Key")
     else:
-        with st.spinner(t("正在分析数据并生成建议...", "Analyzing data and generating recommendations...")):
+        with st.spinner("正在分析数据并生成建议..."):
             try:
                 from anthropic import Anthropic
                 client = Anthropic(api_key=api_key)
                 data_context = build_data_context(report_scope, scope_value, window_start, max_date)
 
                 if data_context is None:
-                    st.warning(t("所选时间窗口内没有数据，请选择更长的时间窗口。", "No data in the selected window — please choose a longer window."))
+                    st.warning("所选时间窗口内没有数据，请选择更长的时间窗口。")
                     st.stop()
 
                 message = client.messages.create(
                     model="claude-sonnet-4-5",
-                    max_tokens=2000,
+                    max_tokens=2200,
                     system=SYSTEM_PROMPT,
-                    messages=[{"role": "user", "content": t(f"请基于以下数据生成运营建议报告：\n{data_context}",
-                                                              f"Please generate a strategy report based on this data:\n{data_context}")}]
+                    messages=[{"role": "user", "content": f"请基于以下数据生成结构化经营复盘报告：\n{data_context}"}]
                 )
                 report_text = message.content[0].text
                 st.session_state["last_report"] = report_text
                 st.session_state["last_context"] = data_context
             except Exception as e:
-                st.error(t(f"生成失败: {e}", f"Generation failed: {e}"))
+                st.error(f"生成失败: {e}")
 
 if "last_report" in st.session_state:
     st.divider()
     st.markdown(st.session_state["last_report"])
     st.download_button(
-        t("下载报告 (Markdown)", "Download Report (Markdown)"),
+        "下载报告 (Markdown)",
         st.session_state["last_report"],
-        file_name="strategy_report.md", mime="text/markdown"
+        file_name="运营建议报告.md", mime="text/markdown"
     )
-    with st.expander(t("查看喂给 AI 的原始数据摘要", "View raw data context sent to the AI")):
+    with st.expander("查看喂给 AI 的原始数据摘要"):
         st.text(st.session_state["last_context"])
+else:
+    with st.expander("📄 未生成报告？先看一份示例报告结构"):
+        st.markdown("""
+## 1. 核心经营问题 Key Business Issue
+本周期内识别出 18 个高流量低转化 SKU，合计占平台总流量的 27.3%，是当前转化效率的主要拖累来源。
+
+## 2. 原因假设 Root Cause Hypothesis
+其中 62% 的问题商品存在"定价偏高"标记，31% 存在详情页图文质量偏弱的问题，推测转化承接不足主要来自价格竞争力和内容质量两方面。
+
+## 3. 优先行动建议 Priority Actions
+1. 【安德玛轻量运动背包】流量Top1但转化率仅1.7%，建议优先复核定价并更换主图
+2. 【Reebok极简运动裤】退款率高于均值1.3倍，建议排查尺码描述准确性
+3. ……
+
+## 4. 预期影响 Expected Impact
+若上述TOP5拖累款转化率提升0.5个百分点，预计可带来约¥12万潜在GMV增量（可用下方测算器验证）。
+
+## 5. 追踪指标 Metrics to Track
+CTR、CVR、GMV、退款率，建议观察周期7-14天。
+
+## 6. 建议验证实验 Suggested A/B Test
+假设：优化商品标题与主图可提升高流量低转化SKU的转化率。对照组维持原内容，实验组使用优化后内容，主指标为CVR，护栏指标为退款率与投诉率，观察周期7-14天。
+
+*（以上为示例结构，实际内容由 AI 基于当前筛选数据生成）*
+""")
 
 st.divider()
 
 # ============================================================
 # 模块二：GMV 增量测算器
 # ============================================================
-st.subheader(t("🧮 拖累款转化率提升 · GMV 增量测算器", "🧮 GMV Uplift Calculator for Conversion Improvement"))
-st.caption(t(
-    "测算逻辑：潜在GMV增量 = 流量(UV) × 转化率提升幅度(pct) × 客单价(AOV)。"
-    "用于量化「如果把拖累款的转化率问题解决了，能带来多少增量」，是向业务方争取资源投入的量化依据。",
-    "Formula: Potential GMV Uplift = Traffic (UV) × Conversion Rate Lift (pct) × AOV. "
-    "Used to quantify \"how much GMV upside exists if we fix drag-SKU conversion issues\" — "
-    "a data-driven case for requesting resources."
-))
+st.subheader("🧮 拖累款转化率提升 · GMV 增量测算器")
+st.markdown("""
+本测算用于评估**"高流量低转化 SKU 优化"**可能带来的 GMV 增量。假设通过标题、主图、价格力或库存优化，
+将目标 SKU 的转化率提升一定百分点，则可用以下公式估算潜在 GMV 增量：
+
+> **潜在GMV增量 = 流量(UV) × 转化率提升幅度(pct) × 客单价(AOV)**
+""")
+st.warning("⚠️ 该工具不是预测模型，仅用于帮助业务团队简化评估优化优先级和机会空间。")
 
 # 复用商品诊断页同样的四象限逻辑，锁定"拖累款"清单供测算选用
 sku_agg_calc = sku.groupby(["sku_id", "product_name", "brand", "category"]).agg(
@@ -218,88 +238,94 @@ drag_calc = sku_agg_calc[(sku_agg_calc["total_uv"] >= uv_med_c) & (sku_agg_calc[
 drag_calc["aov"] = drag_calc["total_gmv"] / drag_calc["total_orders"].replace(0, pd.NA)
 drag_calc = drag_calc.dropna(subset=["aov"]).sort_values("total_uv", ascending=False)
 
-calc_mode = st.radio(
-    t("测算对象", "Calculation Target"),
-    [t("单个拖累款 SKU", "Single drag SKU"), t("全部拖累款汇总", "All drag SKUs combined")],
-    horizontal=True
-)
+calc_mode = st.radio("测算对象", ["单个拖累款 SKU", "全部拖累款汇总"], horizontal=True)
 
 cc1, cc2 = st.columns(2)
 
-if calc_mode == t("单个拖累款 SKU", "Single drag SKU"):
+if calc_mode == "单个拖累款 SKU":
     with cc1:
         sku_label_map = {f"{row.product_name}（{row.brand}）": row.sku_id for row in drag_calc.itertuples()}
-        picked_label = st.selectbox(t("选择拖累款 SKU", "Select a drag SKU"), list(sku_label_map.keys()))
+        picked_label = st.selectbox("选择拖累款 SKU", list(sku_label_map.keys()))
         picked = drag_calc[drag_calc["sku_id"] == sku_label_map[picked_label]].iloc[0]
-        traffic = st.number_input(t("流量 UV", "Traffic (UV)"), value=int(picked["total_uv"]), min_value=0)
-        aov_input = st.number_input(t("客单价 AOV (¥)", "AOV (¥)"), value=round(float(picked["aov"]), 1), min_value=0.0)
+        traffic = st.number_input("流量 UV", value=int(picked["total_uv"]), min_value=0)
+        aov_input = st.number_input("客单价 AOV (¥)", value=round(float(picked["aov"]), 1), min_value=0.0)
     with cc2:
-        current_cr = st.number_input(t("当前转化率 (%)", "Current CVR (%)"), value=round(float(picked["cr"])*100, 2), min_value=0.0, max_value=100.0)
-        cr_lift = st.number_input(t("目标提升幅度 (百分点 pct)", "Target Lift (percentage points)"), value=0.5, min_value=0.0, max_value=50.0, step=0.1)
+        current_cr = st.number_input("当前转化率 (%)", value=round(float(picked["cr"])*100, 2), min_value=0.0, max_value=100.0)
+        cr_lift = st.number_input("目标提升幅度 (百分点 pct)", value=0.5, min_value=0.0, max_value=50.0, step=0.1)
 
     uplift_orders = traffic * (cr_lift / 100)
     uplift_gmv = traffic * (cr_lift / 100) * aov_input
 
     st.divider()
     r1, r2, r3 = st.columns(3)
-    r1.metric(t("当前转化率", "Current CVR"), f"{current_cr:.2f}%")
-    r2.metric(t("目标转化率", "Target CVR"), f"{current_cr + cr_lift:.2f}%", f"+{cr_lift:.1f}pp")
-    r3.metric(t("潜在 GMV 增量", "Potential GMV Uplift"), f"¥{uplift_gmv:,.0f}",
-              help=t("= UV × 转化率提升幅度 × AOV", "= UV × Conversion Lift × AOV"))
-    st.info(t(f"预计新增订单约 **{uplift_orders:.0f}** 单，带来约 **¥{uplift_gmv:,.0f}** 的潜在 GMV 增量。",
-              f"Estimated **{uplift_orders:.0f}** additional orders, generating approximately **¥{uplift_gmv:,.0f}** in potential GMV uplift."))
+    r1.metric("当前转化率", f"{current_cr:.2f}%")
+    r2.metric("目标转化率", f"{current_cr + cr_lift:.2f}%", f"+{cr_lift:.1f}pp")
+    r3.metric("潜在 GMV 增量", f"¥{uplift_gmv:,.0f}", help="= UV × 转化率提升幅度 × AOV")
+    st.info(f"预计新增订单约 **{uplift_orders:.0f}** 单，带来约 **¥{uplift_gmv:,.0f}** 的潜在 GMV 增量。")
 
 else:
     with cc1:
-        cr_lift = st.number_input(t("目标提升幅度 (百分点 pct)", "Target Lift (percentage points)"), value=0.5, min_value=0.0, max_value=50.0, step=0.1, key="bulk_lift")
-        st.caption(t(f"当前共识别 {len(drag_calc)} 个拖累款 SKU（全平台，全部历史数据）", f"{len(drag_calc)} drag SKUs identified (all platform, all history)"))
+        cr_lift = st.number_input("目标提升幅度 (百分点 pct)", value=0.5, min_value=0.0, max_value=50.0, step=0.1, key="bulk_lift")
+        st.caption(f"当前共识别 {len(drag_calc)} 个拖累款 SKU（全平台，全部历史数据）")
     with cc2:
-        st.metric(t("拖累款合计流量 UV", "Total Drag-SKU Traffic"), f"{drag_calc['total_uv'].sum():,.0f}")
-        st.metric(t("拖累款平均客单价", "Average AOV of Drag SKUs"), f"¥{drag_calc['aov'].mean():,.0f}")
+        st.metric("拖累款合计流量 UV", f"{drag_calc['total_uv'].sum():,.0f}")
+        st.metric("拖累款平均客单价", f"¥{drag_calc['aov'].mean():,.0f}")
 
     drag_calc["uplift_gmv"] = drag_calc["total_uv"] * (cr_lift / 100) * drag_calc["aov"]
     total_uplift = drag_calc["uplift_gmv"].sum()
 
     st.divider()
-    st.metric(t("全部拖累款潜在 GMV 增量总和", "Total Potential GMV Uplift (all drag SKUs)"), f"¥{total_uplift:,.0f}",
-              help=t("= Σ (每个SKU的 UV × 转化率提升幅度 × AOV)", "= Σ (each SKU's UV × Conversion Lift × AOV)"))
+    st.metric("全部拖累款潜在 GMV 增量总和", f"¥{total_uplift:,.0f}", help="= Σ (每个SKU的 UV × 转化率提升幅度 × AOV)")
 
     top_uplift = drag_calc.sort_values("uplift_gmv", ascending=False).head(10)
     display_df = top_uplift[["product_name", "brand", "total_uv", "cr", "aov", "uplift_gmv"]].rename(columns={
-        "product_name": t("商品名", "Product"), "brand": t("品牌", "Brand"),
-        "total_uv": t("流量UV", "Traffic"), "cr": t("当前转化率", "Current CVR"),
-        "aov": t("客单价", "AOV"), "uplift_gmv": t("预计GMV增量", "Est. GMV Uplift"),
+        "product_name": "商品名", "brand": "品牌", "total_uv": "流量UV",
+        "cr": "当前转化率", "aov": "客单价", "uplift_gmv": "预计GMV增量",
     })
-    display_df[t("当前转化率", "Current CVR")] = (display_df[t("当前转化率", "Current CVR")] * 100).round(2).astype(str) + "%"
-    display_df[t("预计GMV增量", "Est. GMV Uplift")] = display_df[t("预计GMV增量", "Est. GMV Uplift")].round(0)
-    st.caption(t("增量贡献 TOP10 拖累款", "Top 10 SKUs by potential GMV uplift"))
+    display_df["当前转化率"] = (display_df["当前转化率"] * 100).round(2).astype(str) + "%"
+    display_df["预计GMV增量"] = display_df["预计GMV增量"].round(0)
+    st.caption("增量贡献 TOP10 拖累款")
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 st.divider()
-with st.expander(t("💬 或者：直接问数据问题（自由问答模式）", "💬 Or: Ask a free-form data question")):
-    user_q = st.text_input(t("输入你的问题，例如：哪个品牌的拖累款最多？", "Type your question, e.g. Which brand has the most drag SKUs?"))
-    ask_btn = st.button(t("提问", "Ask"))
+
+# ============================================================
+# 模块三：后续追踪指标 Follow-up Tracking Metrics
+# ============================================================
+st.subheader("📈 后续追踪指标 Follow-up Tracking Metrics")
+st.caption("策略执行之后，用什么指标证明它是否有效？——这是复盘闭环中最容易被忽略的一环。")
+
+tracking_table = pd.DataFrame([
+    ["优化拖累款标题/主图", "CTR、CVR、GMV、退款率", "7-14天"],
+    ["调整价格/折扣", "CVR、AOV、毛利率、GMV", "7-14天"],
+    ["增加潜力款曝光", "UV、CTR、CVR、GMV贡献占比", "7天"],
+    ["优化活动资源分配", "活动ROI、GMV、订单量", "整个活动周期"],
+    ["AI建议落地情况", "建议采纳率、报告生成耗时、行动完成率", "每周复盘"],
+], columns=["策略", "追踪指标", "评估周期"])
+st.dataframe(tracking_table, use_container_width=True, hide_index=True)
+
+st.divider()
+with st.expander("💬 或者：直接问数据问题（自由问答模式）"):
+    user_q = st.text_input("输入你的问题，例如：哪个品牌的拖累款最多？")
+    ask_btn = st.button("提问")
     if ask_btn and user_q:
         if not api_key:
-            st.error(t("请先填入 API Key", "Please enter your API Key first"))
+            st.error("请先填入 API Key")
         else:
-            with st.spinner(t("思考中...", "Thinking...")):
+            with st.spinner("思考中..."):
                 try:
                     from anthropic import Anthropic
                     client = Anthropic(api_key=api_key)
                     data_context = build_data_context(report_scope, scope_value, window_start, max_date)
                     if data_context is None:
-                        st.warning(t("所选时间窗口内没有数据，请选择更长的时间窗口。", "No data in the selected window — please choose a longer window."))
+                        st.warning("所选时间窗口内没有数据，请选择更长的时间窗口。")
                         st.stop()
                     message = client.messages.create(
                         model="claude-sonnet-4-5",
                         max_tokens=800,
-                        system=SYSTEM_PROMPT + t("\n\n请直接回答用户问题，不需要输出完整报告格式。",
-                                                   "\n\nAnswer the user's question directly, no need for the full report format."),
-                        messages=[{"role": "user", "content": t(f"数据背景：\n{data_context}\n\n问题：{user_q}",
-                                                                  f"Data context:\n{data_context}\n\nQuestion: {user_q}")}]
+                        system=SYSTEM_PROMPT + "\n\n如果用户是在追问细节，可以直接回答问题，不必输出完整六段式报告格式。",
+                        messages=[{"role": "user", "content": f"数据背景：\n{data_context}\n\n问题：{user_q}"}]
                     )
                     st.markdown(message.content[0].text)
                 except Exception as e:
-                    st.error(t(f"回答失败: {e}", f"Failed to answer: {e}"))
-
+                    st.error(f"回答失败: {e}")

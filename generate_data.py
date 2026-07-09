@@ -12,8 +12,8 @@ import random
 random.seed(42)
 np.random.seed(42)
 
-START_DATE = date(2024, 7, 1)
-END_DATE = date(2025, 6, 30)
+START_DATE = date(2024, 12, 1)
+END_DATE = date(2025, 12, 31)
 ALL_DATES = pd.date_range(START_DATE, END_DATE, freq="D")
 N_DAYS = len(ALL_DATES)
 
@@ -30,12 +30,13 @@ CHANNEL_CR_MULTIPLIER = {
 }
 
 FESTIVALS = {
-    "2024-08-08": (1.4, "周年庆预热"), "2024-09-09": (1.3, "金秋焕新节"),
-    "2024-10-21": (1.6, "双11预售"), "2024-11-11": (2.8, "双11爆发"),
-    "2024-11-12": (1.6, "双11返场"), "2024-12-12": (1.9, "双12大促"),
-    "2025-01-20": (1.7, "年货节"), "2025-02-14": (1.3, "情人节"),
-    "2025-03-08": (1.5, "38女王节"), "2025-04-15": (1.2, "换季焕新"),
-    "2025-05-01": (1.4, "五一大促"), "2025-06-18": (2.4, "618大促"),
+    "2024-12-12": (1.9, "双12大促"), "2025-01-20": (1.7, "年货节"),
+    "2025-02-14": (1.3, "情人节"), "2025-03-08": (1.5, "38女王节"),
+    "2025-04-15": (1.2, "换季焕新"), "2025-05-01": (1.4, "五一大促"),
+    "2025-06-18": (2.4, "618大促"), "2025-07-15": (1.3, "暑期焕新节"),
+    "2025-08-08": (1.4, "周年庆预热"), "2025-09-09": (1.3, "金秋焕新节"),
+    "2025-10-21": (1.6, "双11预售"), "2025-11-11": (2.8, "双11爆发"),
+    "2025-11-12": (1.6, "双11返场"), "2025-12-12": (1.9, "双12大促"),
 }
 FESTIVAL_DATES = {pd.Timestamp(k): v for k, v in FESTIVALS.items()}
 
@@ -118,7 +119,7 @@ campaign_schedule = []
 campaign_id_counter = 1
 for b in BRANDS:
     brand = b["brand"]
-    n_camp = int(np.clip(10 + b["traffic_idx"] * 14 + np.random.normal(0, 2), 6, 30))
+    n_camp = int(np.clip((10 + b["traffic_idx"] * 14 + np.random.normal(0, 2)) * (span_days / 365), 6, 34))
     offsets = np.sort(np.random.choice(range(3, span_days - 7), size=n_camp, replace=False))
     for off in offsets:
         start_d = START_DATE + timedelta(days=int(off))
