@@ -127,6 +127,8 @@ if uv_chg is not None and uv_chg > 0.20 and (orders_chg is None or orders_chg < 
                     "建议检查流量来源质量、商品价格力、页面卖点和库存状态。"))
 
 # --- 第三层：SKU 问题识别（联动商品诊断页）---
+# 判定标准与「商品诊断」页保持一致：统一使用中位数法（标准四象限），
+# 即"流量≥中位数 且 转化率<中位数"，确保两页对同一时间窗口给出一致的拖累款数量
 sku_all = load_sku_performance()
 sku_in_range = sku_all[(sku_all["start_date"] >= start) & (sku_all["start_date"] <= end)]
 n_problem_sku = 0
@@ -134,14 +136,14 @@ drag_uv_share_range = 0
 if len(sku_in_range) > 10:
     s_agg = sku_in_range.groupby("sku_id").agg(uv=("uv", "sum"), orders=("orders", "sum")).reset_index()
     s_agg["cr"] = s_agg["orders"] / s_agg["uv"]
-    uv_t = s_agg["uv"].quantile(0.7)
-    cr_t = s_agg["cr"].quantile(0.3)
-    problem_mask = (s_agg["uv"] >= uv_t) & (s_agg["cr"] <= cr_t)
+    uv_t = s_agg["uv"].median()
+    cr_t = s_agg["cr"].median()
+    problem_mask = (s_agg["uv"] >= uv_t) & (s_agg["cr"] < cr_t)
     n_problem_sku = problem_mask.sum()
     drag_uv_share_range = s_agg.loc[problem_mask, "uv"].sum() / s_agg["uv"].sum() if s_agg["uv"].sum() else 0
     if n_problem_sku > 0:
         alerts.append(("high", f"🔴 发现 {n_problem_sku} 个高流量低转化 SKU",
-                        f"这些商品获得了较高曝光（占当前范围总流量 {drag_uv_share_range*100:.1f}%），但转化率低于当前范围均值。",
+                        f"这些商品获得了较高曝光（占当前范围总流量 {drag_uv_share_range*100:.1f}%），但转化率低于当前范围中位数。",
                         "建议前往「商品诊断」页获取完整清单，优先检查商品标题、主图、价格力和库存状态。"))
 
 # --- 健康度评分 ---
